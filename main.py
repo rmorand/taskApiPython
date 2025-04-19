@@ -1,13 +1,23 @@
 from fastapi import FastAPI, HTTPException
 from typing import Optional, List
+from sqlmodel import SQLModel, Field, create_engine, Session, select
+
 from Task import Task
 from TaskCreate import TaskCreate
 from TaskUpdate import TaskUpdate
 
 app = FastAPI()
 
-tasks: List[Task] = []
-next_id = 1
+sqlite_file_name = "database.db"
+sqlite_url = f"sqlite:///{sqlite_file_name}"
+engine = create_engine(sqlite_url, echo=True)
+
+def create_db_and_tables():
+    SQLModel.metadata.create_all(engine)
+
+@app.on_event("startup")
+def on_startup():
+    create_db_and_tables()
 
 @app.get("/")
 def read_root():
