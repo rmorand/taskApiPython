@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from typing import Optional, List
 from sqlmodel import SQLModel, Field, create_engine, Session, select
 
@@ -23,42 +23,42 @@ def on_startup():
 def read_root():
     return {"message": "Bienvenue dans l'API de gestion des tâches"}
 
-@app.get("/tasks", response_model=List[Task])
-def get_tasks():
-    return tasks
+# @app.get("/tasks", response_model=list[Task])
+# def read_tasks(session: Session = Depends(lambda: Session(engine))):
+#     tasks = session.exec(select(Task)).all()
+#     return tasks
 
 @app.get("/tasks/{task_id}", response_model=Task)
-def get_task(task_id: int):
-    for task in tasks:
-        if task.id == task_id:
-            return task
-    raise HTTPException(status_code=404, detail="Tâche non trouvée")
+def read_task(task_id: int, session: Session = Depends(lambda: Session(engine))):
+    task = session.get(Task, task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Tâche non trouvée")
+    return task
 
 @app.post("/tasks", response_model=Task)
-def create_task(task: TaskCreate):
-    global next_id
-    new_task = Task(id=next_id, title=task.title, description=task.description)
-    tasks.append(new_task)
-    next_id += 1
-    return new_task
+def create_task(task: Task, session: Session = Depends(lambda: Session(engine))):
+    session.add(task)
+    session.commit()
+    session.refresh(task)
+    return task
 
 @app.put("/tasks/{task_id}", response_model=Task)
-def update_task(task_id: int, task_update: TaskUpdate):
-    for task in tasks:
-        if task.id == task_id:
-            if task_update.title is not None:
-                task.title = task_update.title
-            if task_update.description is not None:
-                task.description = task_update.description
-            if task_update.done is not None:
-                task.done = task_update.done
-            return task
-    raise HTTPException(status_code=404, detail="Tâche non trouvée")
+def update_task(task_id: int, task_data: Task, session: Session = Depends(lambda: Session(engine))):
+    task = session.get(Task, task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Tâche non trouvée")
+    task.title = task_data.title
+    task.description = task_data.description
+    task.done = task_data.done
+    session.add(task)
+    session.commit()
+    session.refresh(task)
+    return task
 
 @app.delete("/tasks/{task_id}", status_code=204)
-def delete_task(task_id: int):
-    for i, task in enumerate(tasks):
-        if task.id == task_id:
-            del tasks[i]
-            return
-    raise HTTPException(status_code=404, detail="Tâche non trouvée")
+def delete_task(task_id: int, session: Session = Depends(lambda: Session(engine))):
+    task = session.get(Task, task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Tâche non trouvée")
+    session.delete(task)
+    session.commit()
