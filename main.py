@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, Depends
 from typing import Optional, List
-from sqlmodel import SQLModel, Field, create_engine, Session, select
+from sqlmodel import SQLModel, create_engine, Session
 
 from Task import Task
 from TaskCreate import TaskCreate
